@@ -1,0 +1,26 @@
+{
+  "name": "smartprior-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SmartPrior AI - AI-assisted prior authorization platform foundation",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "install:all": "npm install",
+    "dev:backend": "npm run dev --workspace=backend",
+    "dev:frontend": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "build:backend": "npm run build --workspace=backend",
+    "build:frontend": "npm run build --workspace=frontend",
+    "lint": "npm run lint --workspace=backend && npm run lint --workspace=frontend",
+    "type-check": "npm run type-check --workspace=backend && npm run type-check --workspace=frontend",
+    "test": "npm run test --workspace=backend && npm run test --workspace=frontend",
+    "prisma:generate": "npm run prisma:generate --workspace=backend",
+    "prisma:validate": "npm run prisma:validate --workspace=backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

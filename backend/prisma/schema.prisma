@@ -1,0 +1,19 @@
+// Prisma schema for SmartPrior-AI
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Initial foundation verification model
+model HealthCheck {
+  id        String   @id @default(uuid())
+  status    String   @default("ok")
+  checkedAt DateTime @default(now())
+
+  @@map("health_checks")
+}
