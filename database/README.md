@@ -3,10 +3,12 @@
 This directory manages database migrations, seeds, and SQL utilities for SmartPrior AI.
 
 ## Database Setup & ORM
+
 - **Database:** PostgreSQL
 - **ORM:** Prisma
 
 ## Key Commands (Run from `backend/` or root)
+
 ```bash
 # Generate Prisma client
 npm run prisma:generate

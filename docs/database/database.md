@@ -3,13 +3,16 @@
 ## Entity Relationship Overview
 
 ### Core Tables
+
 1. **`users`**
+
    - `id` (UUID, PK)
    - `email` (VARCHAR, Unique)
    - `role` (ENUM: admin, doctor, auditor)
    - `created_at` (TIMESTAMP)
 
 2. **`documents`**
+
    - `id` (UUID, PK)
    - `patient_id` (VARCHAR)
    - `provider_id` (UUID, FK -> users.id)
@@ -18,6 +21,7 @@
    - `status` (ENUM: pending, processing, processed, failed)
 
 3. **`extractions`**
+
    - `id` (UUID, PK)
    - `document_id` (UUID, FK -> documents.id)
    - `raw_text` (TEXT)

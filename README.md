@@ -13,6 +13,7 @@ Prior authorization delays cause care disruption, provider frustration, regulato
 ## 🎯 Project Objective
 
 The MVP demonstrates how AI assists the prior authorization workflow by:
+
 1. Processing clinical documents (PDF, images, EHR exports).
 2. Summarizing clinical information.
 3. Detecting missing documentation.
@@ -29,6 +30,7 @@ The MVP demonstrates how AI assists the prior authorization workflow by:
 ## 💻 Technology Stack
 
 ### Frontend
+
 - **Framework:** React 18, Vite, TypeScript (Strict Mode)
 - **UI Library:** Material UI (MUI v5)
 - **Routing:** React Router v6
@@ -36,6 +38,7 @@ The MVP demonstrates how AI assists the prior authorization workflow by:
 - **Forms & Validation:** React Hook Form, Zod
 
 ### Backend
+
 - **Runtime & Server:** Node.js, Express, TypeScript (Strict Mode)
 - **Architecture:** Controller → Service → Repository → Prisma → PostgreSQL
 - **ORM & Database:** Prisma, PostgreSQL
@@ -43,6 +46,7 @@ The MVP demonstrates how AI assists the prior authorization workflow by:
 - **Logging & Errors:** Centralized Error Middleware, Request Logger
 
 ### Testing & DevOps
+
 - **Testing:** Jest, Supertest
 - **Containerization:** Docker, Docker Compose
 - **CI/CD:** GitHub Actions workflow
@@ -85,12 +89,15 @@ SmartPrior-AI/
 ## 🚀 Local Setup Instructions
 
 ### Prerequisites
+
 - **Node.js**: v20+
 - **npm**: v10+
 - **Docker & Docker Compose** (Optional, for local PostgreSQL container)
 
 ### Environment Configuration
+
 Copy the `.env.example` file to create your local `.env`:
+
 ```bash
 cp .env.example .env
 ```
@@ -100,23 +107,29 @@ cp .env.example .env
 ## 🏃 Running the Application
 
 ### 1. Install Dependencies
+
 ```bash
 npm run install:all
 ```
 
 ### 2. Start Backend Development Server
+
 ```bash
 npm run dev:backend
 ```
+
 Backend API listens at `http://localhost:4000/api/v1/health`.
 
 ### 3. Start Frontend Development Server
+
 ```bash
 npm run dev:frontend
 ```
+
 Frontend shell opens at `http://localhost:3000`.
 
 ### 4. Run via Docker Compose (Local Database + Services)
+
 ```bash
 docker-compose -f docker/docker-compose.yml up -d
 ```
@@ -146,11 +159,11 @@ npm run build
 
 ## 📊 Current Implementation Status
 
-| Component | Status | Details |
-|---|---|---|
-| Initial Foundation | ✅ Complete | Directory structure, workspace configs, Express backend, React shell |
-| Health Check API | ✅ Complete | `GET /api/v1/health` returning 200 OK |
-| Prisma / DB Setup | ✅ Complete | Prisma schema setup & verification |
-| Docker & CI/CD | ✅ Complete | Multi-stage Dockerfiles & GitHub Actions CI |
-| Prior Auth Workflows | ⏳ Pending | Scheduled for future feature-by-feature iterations |
-| AI Integration | ⏳ Pending | Scheduled for future feature-by-feature iterations |
+| Component            | Status      | Details                                                              |
+| -------------------- | ----------- | -------------------------------------------------------------------- |
+| Initial Foundation   | ✅ Complete | Directory structure, workspace configs, Express backend, React shell |
+| Health Check API     | ✅ Complete | `GET /api/v1/health` returning 200 OK                                |
+| Prisma / DB Setup    | ✅ Complete | Prisma schema setup & verification                                   |
+| Docker & CI/CD       | ✅ Complete | Multi-stage Dockerfiles & GitHub Actions CI                          |
+| Prior Auth Workflows | ⏳ Pending  | Scheduled for future feature-by-feature iterations                   |
+| AI Integration       | ⏳ Pending  | Scheduled for future feature-by-feature iterations                   |

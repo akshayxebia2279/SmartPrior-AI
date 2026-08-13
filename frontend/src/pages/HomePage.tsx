@@ -1,5 +1,15 @@
 import React from 'react';
-import { Box, Paper, Typography, Grid, Card, CardContent, Alert, Stack, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Paper,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Alert,
+  Stack,
+  CircularProgress,
+} from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import StorageIcon from '@mui/icons-material/Storage';
@@ -23,7 +33,11 @@ const fetchHealth = async (): Promise<HealthResponse> => {
 };
 
 export const HomePage: React.FC = () => {
-  const { data: health, isLoading, error } = useQuery<HealthResponse>({
+  const {
+    data: health,
+    isLoading,
+    error,
+  } = useQuery<HealthResponse>({
     queryKey: ['backend-health'],
     queryFn: fetchHealth,
     retry: 1,
@@ -31,15 +45,28 @@ export const HomePage: React.FC = () => {
 
   return (
     <Box sx={{ py: 2 }}>
-      <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, border: '1px solid #e2e8f0', background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)' }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 4,
+          mb: 4,
+          borderRadius: 3,
+          border: '1px solid #e2e8f0',
+          background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)',
+        }}
+      >
         <Typography variant="h4" component="h1" fontWeight={700} gutterBottom color="#0f172a">
           SmartPrior AI Foundation Shell
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph sx={{ maxWidth: 800 }}>
-          Welcome to the initial foundation of the SmartPrior AI Capstone Project. This platform provides an AI-assisted prior authorization pipeline with mandatory human reviewer guardrails.
+          Welcome to the initial foundation of the SmartPrior AI Capstone Project. This platform
+          provides an AI-assisted prior authorization pipeline with mandatory human reviewer
+          guardrails.
         </Typography>
         <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-          <strong>AI Guardrail Active:</strong> AI provides clinical summaries, criteria verification, and advisory recommendations. Final prior authorization decisions are strictly made by authorized human reviewers.
+          <strong>AI Guardrail Active:</strong> AI provides clinical summaries, criteria
+          verification, and advisory recommendations. Final prior authorization decisions are
+          strictly made by authorized human reviewers.
         </Alert>
       </Paper>
 
@@ -112,7 +139,8 @@ export const HomePage: React.FC = () => {
                 </Typography>
               </Stack>
               <Typography variant="body2" color="text.secondary" paragraph>
-                Strict Controller → Service → Repository → Prisma → PostgreSQL architecture configured.
+                Strict Controller → Service → Repository → Prisma → PostgreSQL architecture
+                configured.
               </Typography>
             </CardContent>
           </Card>

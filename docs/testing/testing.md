@@ -1,6 +1,7 @@
 # Testing Strategy & QA Plan - SmartPrior-AI
 
 ## Test Levels
+
 1. **Unit Testing:** Coverage for backend core logic, schema validations, and utility functions (Target: >= 80% coverage).
 2. **Integration Testing:** API endpoint contract testing, DB queries, and external service mocks.
 3. **AI Pipeline Evaluation:** Standard benchmark dataset of anonymized medical records to evaluate OCR accuracy, entity extraction precision/recall, and policy recommendation alignment.

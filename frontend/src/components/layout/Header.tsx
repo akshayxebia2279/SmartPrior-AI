@@ -7,8 +7,15 @@ export const Header: React.FC = () => {
     <AppBar position="static" elevation={1} sx={{ backgroundColor: '#0f172a' }}>
       <Toolbar>
         <HealthAndSafetyIcon sx={{ mr: 1.5, color: '#38bdf8' }} />
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: 0.5 }}>
-          SmartPrior <Box component="span" sx={{ color: '#38bdf8' }}>AI</Box>
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{ flexGrow: 1, fontWeight: 700, letterSpacing: 0.5 }}
+        >
+          SmartPrior{' '}
+          <Box component="span" sx={{ color: '#38bdf8' }}>
+            AI
+          </Box>
         </Typography>
         <Chip
           label="Initial Foundation"

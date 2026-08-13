@@ -9,7 +9,14 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#f8fafc' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        backgroundColor: '#f8fafc',
+      }}
+    >
       <Header />
       <Navigation />
       <Container maxWidth="lg" component="main" sx={{ flexGrow: 1, pb: 6 }}>

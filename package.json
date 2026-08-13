@@ -3,10 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "SmartPrior AI - AI-assisted prior authorization platform foundation",
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "workspaces": ["frontend", "backend"],
   "scripts": {
     "install:all": "npm install",
     "dev:backend": "npm run dev --workspace=backend",
