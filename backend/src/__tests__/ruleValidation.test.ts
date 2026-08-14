@@ -1,6 +1,6 @@
 import request from 'supertest';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 describe('Rule Validation API', () => {
   process.env.NODE_ENV = 'test';
@@ -153,7 +153,7 @@ describe('Rule Validation API', () => {
     });
   };
 
-  const attachCompletedExtraction = async (priorAuthorizationId: string, structuredData: Record<string, unknown>) => {
+  const attachCompletedExtraction = async (priorAuthorizationId: string, structuredData: Prisma.InputJsonObject) => {
     const providerUser = await prisma.user.findUnique({ where: { email: 'provider@smartprior-demo.local' } });
 
     const document = await prisma.document.create({
