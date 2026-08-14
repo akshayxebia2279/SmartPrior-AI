@@ -298,7 +298,7 @@ describe('AUTH-001 authentication and RBAC foundation', () => {
     delete process.env.JWT_ACCESS_SECRET;
     jest.resetModules();
 
-    expect(() => require('../config/env.config')).toThrow();
+    await expect(import('../config/env.config')).rejects.toThrow();
   });
 
   it('should fail configuration when JWT_ACCESS_SECRET is too short', async () => {
@@ -306,6 +306,6 @@ describe('AUTH-001 authentication and RBAC foundation', () => {
     process.env.JWT_ACCESS_SECRET = 'short';
     jest.resetModules();
 
-    expect(() => require('../config/env.config')).toThrow();
+    await expect(import('../config/env.config')).rejects.toThrow();
   });
 });
