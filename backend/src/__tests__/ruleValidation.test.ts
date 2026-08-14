@@ -32,6 +32,12 @@ describe('Rule Validation API', () => {
       create: { email: 'admin@smartprior-demo.local', passwordHash, firstName: 'Ava', lastName: 'Admin', roleId: adminRole.id, isActive: true },
     });
 
+    const provider = await prisma.provider.upsert({
+      where: { id: demoProviderId },
+      update: { name: 'Demo Provider Org' },
+      create: { id: demoProviderId, name: 'Demo Provider Org' },
+    });
+
     await prisma.user.upsert({
       where: { email: 'provider@smartprior-demo.local' },
       update: { passwordHash, firstName: 'Lena', lastName: 'Provider', roleId: providerRole.id, providerId: demoProviderId, isActive: true },
@@ -42,12 +48,6 @@ describe('Rule Validation API', () => {
       where: { email: 'reviewer@smartprior-demo.local' },
       update: { passwordHash, firstName: 'Milo', lastName: 'Reviewer', roleId: reviewerRole.id, isActive: true },
       create: { email: 'reviewer@smartprior-demo.local', passwordHash, firstName: 'Milo', lastName: 'Reviewer', roleId: reviewerRole.id, isActive: true },
-    });
-
-    const provider = await prisma.provider.upsert({
-      where: { id: demoProviderId },
-      update: { name: 'Demo Provider Org' },
-      create: { id: demoProviderId, name: 'Demo Provider Org' },
     });
 
     const company = await prisma.insuranceCompany.upsert({
