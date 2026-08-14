@@ -11,6 +11,8 @@ describe('Document Extraction API', () => {
   let app: any;
   const prisma = new PrismaClient();
   const demoPassword = process.env.SMARTPRIOR_DEMO_PASSWORD as string;
+  const demoProviderId = '11111111-1111-1111-1111-111111111111';
+  const demoPatientMemberId = 'PATIENT-DEMO-001';
 
   const uniqueSuffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -39,25 +41,36 @@ describe('Document Extraction API', () => {
       create: { email: 'reviewer@smartprior-demo.local', passwordHash, firstName: 'Milo', lastName: 'Reviewer', roleId: reviewerRole.id, isActive: true },
     });
 
-    let provider = await prisma.provider.findFirst({ where: { name: 'Demo Provider Org' } });
-    if (!provider) {
-      provider = await prisma.provider.create({ data: { name: 'Demo Provider Org' } });
-    }
+    const provider = await prisma.provider.upsert({
+      where: { id: demoProviderId },
+      update: { name: 'Demo Provider Org' },
+      create: { id: demoProviderId, name: 'Demo Provider Org' },
+    });
 
-    let company = await prisma.insuranceCompany.findFirst({ where: { code: 'DEMO' } });
-    if (!company) {
-      company = await prisma.insuranceCompany.create({ data: { name: 'Demo Ins Co', code: 'DEMO' } });
-    }
+    const company = await prisma.insuranceCompany.upsert({
+      where: { code: 'DEMO' },
+      update: { name: 'Demo Ins Co' },
+      create: { name: 'Demo Ins Co', code: 'DEMO' },
+    });
 
-    let plan = await prisma.insurancePlan.findFirst({ where: { planCode: 'DEMO-PLAN' } });
-    if (!plan) {
-      plan = await prisma.insurancePlan.create({ data: { insuranceCompanyId: company.id, name: 'Demo Plan', planCode: 'DEMO-PLAN' } });
-    }
+    const plan = await prisma.insurancePlan.upsert({
+      where: {
+        insuranceCompanyId_planCode: {
+          insuranceCompanyId: company.id,
+          planCode: 'DEMO-PLAN',
+        },
+      },
+      update: { name: 'Demo Plan' },
+      create: { insuranceCompanyId: company.id, name: 'Demo Plan', planCode: 'DEMO-PLAN' },
+    });
 
-    let patient = await prisma.patient.findFirst({ where: { email: 'patient@demo.local' } });
-    if (!patient) {
-      patient = await prisma.patient.create({ data: { firstName: 'Pat', lastName: 'Demo', email: 'patient@demo.local' } });
-    }
+    await prisma.patient.upsert({
+      where: { memberId: demoPatientMemberId },
+      update: { firstName: 'Pat', lastName: 'Demo', email: 'patient@demo.local' },
+      create: { firstName: 'Pat', lastName: 'Demo', email: 'patient@demo.local', memberId: demoPatientMemberId },
+    });
+
+    return { provider, company, plan };
   };
 
   const loginAs = async (email: string) => {
@@ -66,9 +79,17 @@ describe('Document Extraction API', () => {
   };
 
   const createDraftAuthorization = async (reference: string) => {
-    const provider = await prisma.provider.findFirst({ where: { name: 'Demo Provider Org' } });
-    const patient = await prisma.patient.findFirst({ where: { email: 'patient@demo.local' } });
-    const plan = await prisma.insurancePlan.findFirst({ where: { planCode: 'DEMO-PLAN' } });
+    const provider = await prisma.provider.findUnique({ where: { id: demoProviderId } });
+    const patient = await prisma.patient.findUnique({ where: { memberId: demoPatientMemberId } });
+    const company = await prisma.insuranceCompany.findUnique({ where: { code: 'DEMO' } });
+    const plan = await prisma.insurancePlan.findUnique({
+      where: {
+        insuranceCompanyId_planCode: {
+          insuranceCompanyId: company!.id,
+          planCode: 'DEMO-PLAN',
+        },
+      },
+    });
 
     return prisma.priorAuthorization.create({
       data: {
