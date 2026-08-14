@@ -27,4 +27,10 @@ router.get('/:id', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVI
 // Update status
 router.patch('/:id/status', controller.updateStatus);
 
+// Evaluate policy/rules
+router.post('/:id/evaluate', requireRoles(RoleName.ADMIN, RoleName.PROVIDER), controller.evaluate);
+
+// Retrieve latest rule evaluation
+router.get('/:id/evaluation', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.getEvaluation);
+
 export default router;

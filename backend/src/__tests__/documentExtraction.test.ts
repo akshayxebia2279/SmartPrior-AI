@@ -1,6 +1,6 @@
 import request from 'supertest';
 import bcrypt from 'bcrypt';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 describe('Document Extraction API', () => {
   process.env.NODE_ENV = 'test';
@@ -16,10 +16,26 @@ describe('Document Extraction API', () => {
 
   const uniqueSuffix = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  const seedRole = async (name: 'ADMIN' | 'PROVIDER' | 'REVIEWER') => {
+    try {
+      return await prisma.role.upsert({ where: { name }, update: {}, create: { name } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const role = await prisma.role.findUnique({ where: { name } });
+
+        if (role) {
+          return role;
+        }
+      }
+
+      throw error;
+    }
+  };
+
   const seedReferenceData = async () => {
-    const adminRole = await prisma.role.upsert({ where: { name: 'ADMIN' }, update: {}, create: { name: 'ADMIN' } });
-    const providerRole = await prisma.role.upsert({ where: { name: 'PROVIDER' }, update: {}, create: { name: 'PROVIDER' } });
-    const reviewerRole = await prisma.role.upsert({ where: { name: 'REVIEWER' }, update: {}, create: { name: 'REVIEWER' } });
+    const adminRole = await seedRole('ADMIN');
+    const providerRole = await seedRole('PROVIDER');
+    const reviewerRole = await seedRole('REVIEWER');
 
     const passwordHash = await bcrypt.hash(demoPassword, 10);
 

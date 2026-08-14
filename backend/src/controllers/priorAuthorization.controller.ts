@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { PriorAuthorizationService } from '../services/priorAuthorization.service';
+import { RuleValidationService } from '../services/ruleValidation.service';
 
 export class PriorAuthorizationController {
   private service: PriorAuthorizationService;
+  private ruleValidationService: RuleValidationService;
 
   constructor() {
     this.service = new PriorAuthorizationService();
+    this.ruleValidationService = new RuleValidationService();
   }
 
   public create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -45,6 +48,26 @@ export class PriorAuthorizationController {
       const actorRole = req.user?.role as any;
       const updated = await this.service.updateStatus(req.params.id, req.body.status, actorRole);
       res.status(200).json({ priorAuthorization: updated });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public evaluate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorRole = req.user?.role as any;
+      const result = await this.ruleValidationService.evaluate(req.params.id, actorRole);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getEvaluation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorRole = req.user?.role as any;
+      const result = await this.ruleValidationService.getLatestEvaluation(req.params.id, actorRole);
+      res.status(200).json(result);
     } catch (error) {
       next(error);
     }

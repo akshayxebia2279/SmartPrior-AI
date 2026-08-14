@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 describe('Prior Authorization API', () => {
@@ -11,14 +11,32 @@ describe('Prior Authorization API', () => {
   let app: any;
   const prisma = new PrismaClient();
 
+  const seedRole = async (name: 'ADMIN' | 'PROVIDER' | 'REVIEWER') => {
+    try {
+      return await prisma.role.upsert({ where: { name }, update: {}, create: { name } });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const role = await prisma.role.findUnique({ where: { name } });
+
+        if (role) {
+          return role;
+        }
+
+        throw new Error(`Role ${name} was created concurrently but could not be loaded.`);
+      }
+
+      throw error;
+    }
+  };
+
   beforeAll(async () => {
     const appModule = await import('../app');
     app = appModule.createApp();
 
     // Ensure roles exist
-    const adminRole = await prisma.role.upsert({ where: { name: 'ADMIN' }, update: {}, create: { name: 'ADMIN' } });
-    const providerRole = await prisma.role.upsert({ where: { name: 'PROVIDER' }, update: {}, create: { name: 'PROVIDER' } });
-    const reviewerRole = await prisma.role.upsert({ where: { name: 'REVIEWER' }, update: {}, create: { name: 'REVIEWER' } });
+    const adminRole = await seedRole('ADMIN');
+    const providerRole = await seedRole('PROVIDER');
+    const reviewerRole = await seedRole('REVIEWER');
 
     // Users (ensure passwordHash matches demo password)
     const demoPassword = process.env.SMARTPRIOR_DEMO_PASSWORD as string;
