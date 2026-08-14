@@ -53,6 +53,7 @@ router.use(authenticateRequest);
 
 router.post('/', requireRoles(RoleName.PROVIDER, RoleName.ADMIN), controller.create);
 router.post('/upload', requireRoles(RoleName.PROVIDER, RoleName.ADMIN), upload.single('file'), controller.upload);
+router.post('/:id/extraction', requireRoles(RoleName.ADMIN, RoleName.PROVIDER), controller.startExtraction);
 router.get('/prior-authorization/:id', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.listByPriorAuthorization);
 router.get('/', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.list);
 router.get('/:id', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.getById);

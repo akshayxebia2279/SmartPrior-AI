@@ -37,8 +37,17 @@ export class DocumentRepository {
             role: { select: { name: true } },
           },
         },
-        extractions: true,
+        extractions: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
+    });
+  }
+
+  public async updateUploadStatus(id: string, uploadStatus: DocumentUploadStatus) {
+    return this.prisma.document.update({
+      where: { id },
+      data: { uploadStatus },
     });
   }
 

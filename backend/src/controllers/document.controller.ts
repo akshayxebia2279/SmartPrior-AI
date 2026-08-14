@@ -1,11 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { DocumentService } from '../services/document.service';
+import { DocumentExtractionService } from '../services/documentExtraction.service';
 
 export class DocumentController {
   private service: DocumentService;
+  private extractionService: DocumentExtractionService;
 
   constructor() {
     this.service = new DocumentService();
+    this.extractionService = new DocumentExtractionService();
   }
 
   public create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -58,6 +61,17 @@ export class DocumentController {
   public listByPriorAuthorization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const result = await this.service.listByPriorAuthorization(req.params.id);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public startExtraction = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorId = req.user?.userId as string;
+      const actorRole = req.user?.role as any;
+      const result = await this.extractionService.startProcessing(req.params.id, actorId, actorRole);
       res.status(200).json(result);
     } catch (error) {
       next(error);
