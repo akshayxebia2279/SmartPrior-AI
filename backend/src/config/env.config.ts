@@ -16,8 +16,11 @@ const envSchema = z.object({
   JWT_SECRET: z.string().optional(),
   JWT_EXPIRES_IN: z.string().optional(),
   SMARTPRIOR_DEMO_PASSWORD: z.string().optional(),
-  AI_PROVIDER: z.string().default('openai'),
+  AI_PROVIDER: z.enum(['local', 'gemini']).default('local'),
   AI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default('gemini-1.5-flash'),
+  AI_TIMEOUT_MS: z.string().default('15000').transform((val) => parseInt(val, 10)),
 });
 
 export const env = envSchema.parse(process.env);

@@ -33,6 +33,11 @@ router.post('/:id/evaluate', requireRoles(RoleName.ADMIN, RoleName.PROVIDER), co
 // Retrieve latest rule evaluation
 router.get('/:id/evaluation', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.getEvaluation);
 
+// Trigger AI analysis and recommendation
+router.post('/:id/analysis', requireRoles(RoleName.ADMIN, RoleName.PROVIDER), controller.analyze);
+
+// Retrieve latest AI analysis and recommendation
+router.get('/:id/analysis', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.getAnalysis);
 
 // Reviewer decision
 router.post('/:id/decision', requireRoles(RoleName.REVIEWER), controller.recordDecision);
