@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: smartprior-ai-backend
+    env: node
+    rootDir: backend
+    plan: free
+    buildCommand: |
+      npm install
+      npx prisma generate
+      npx prisma migrate deploy
+      npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_ACCESS_EXPIRES_IN
+        value: 15m
+      - key: SMARTPRIOR_DEMO_PASSWORD
+        sync: false
+      - key: AI_PROVIDER
+        value: local
+      - key: AI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        value: gemini-1.5-flash
+      - key: AI_TIMEOUT_MS
+        value: "15000"
