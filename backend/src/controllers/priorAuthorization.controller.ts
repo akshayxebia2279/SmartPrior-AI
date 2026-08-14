@@ -72,4 +72,16 @@ export class PriorAuthorizationController {
       next(error);
     }
   };
+
+
+  public recordDecision = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const actorId = req.user?.userId as string;
+      const actorRole = req.user?.role as any;
+      const result = await this.service.recordReviewerDecision(req.params.id, req.body, actorId, actorRole);
+      res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  };
 }

@@ -1,7 +1,8 @@
-import { PrismaClient, PriorAuthorizationStatus, RoleName } from '@prisma/client';
+import { PrismaClient, PriorAuthorizationStatus, ReviewerDecisionType, RoleName } from '@prisma/client';
 import { PriorAuthorizationRepository } from '../repositories/priorAuthorization.repository';
 
 const PRIOR_AUTH_STATUS_VALUES = Object.values(PriorAuthorizationStatus);
+const REVIEWER_DECISION_VALUES = new Set(['APPROVED', 'DENIED', 'REJECTED']);
 
 export class PriorAuthorizationService {
   private repo: PriorAuthorizationRepository;
@@ -136,5 +137,80 @@ export class PriorAuthorizationService {
     // Apply update
     const updated = await this.repo.updateStatus(id, to as PriorAuthorizationStatus, to === 'APPROVED' || to === 'REJECTED' ? new Date() : undefined);
     return updated;
+  }
+
+  public async recordReviewerDecision(
+    id: string,
+    payload: { decision?: string; reason?: string },
+    reviewerId: string,
+    actorRole: RoleName,
+  ) {
+    if (actorRole !== RoleName.REVIEWER) {
+      const err: any = new Error('Access denied');
+      err.statusCode = 403;
+      throw err;
+    }
+
+    const priorAuthorization = await this.prisma.priorAuthorization.findUnique({ where: { id } });
+    if (!priorAuthorization) {
+      const err: any = new Error('Not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    const rawDecision = typeof payload.decision === 'string' ? payload.decision.trim().toUpperCase() : '';
+    const reason = typeof payload.reason === 'string' ? payload.reason.trim() : '';
+
+    if (!REVIEWER_DECISION_VALUES.has(rawDecision) || !reason) {
+      const err: any = new Error('Invalid decision payload');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (
+      priorAuthorization.status === PriorAuthorizationStatus.APPROVED
+      || priorAuthorization.status === PriorAuthorizationStatus.REJECTED
+    ) {
+      const err: any = new Error('Prior authorization already has a final decision');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const existingDecision = await this.repo.findLatestReviewerDecision(id);
+    if (existingDecision) {
+      const err: any = new Error('Reviewer decision already recorded');
+      err.statusCode = 409;
+      throw err;
+    }
+
+    const normalizedDecision = rawDecision === 'DENIED' ? ReviewerDecisionType.REJECTED : rawDecision as ReviewerDecisionType;
+    if (!(normalizedDecision === ReviewerDecisionType.APPROVED || normalizedDecision === ReviewerDecisionType.REJECTED)) {
+      const err: any = new Error('Invalid decision payload');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const finalStatus = normalizedDecision === ReviewerDecisionType.APPROVED
+      ? PriorAuthorizationStatus.APPROVED
+      : PriorAuthorizationStatus.REJECTED;
+
+    const result = await this.repo.createReviewerDecisionAndUpdateStatus(
+      id,
+      reviewerId,
+      normalizedDecision,
+      reason,
+      finalStatus,
+    );
+
+    return {
+      success: true,
+      data: {
+        priorAuthorizationId: result.priorAuthorization.id,
+        decision: result.reviewerDecision.decision,
+        status: result.priorAuthorization.status,
+        reason: result.reviewerDecision.rationale,
+        reviewedAt: result.reviewerDecision.reviewedAt,
+      },
+    };
   }
 }

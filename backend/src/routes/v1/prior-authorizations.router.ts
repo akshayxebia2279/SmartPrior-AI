@@ -33,4 +33,8 @@ router.post('/:id/evaluate', requireRoles(RoleName.ADMIN, RoleName.PROVIDER), co
 // Retrieve latest rule evaluation
 router.get('/:id/evaluation', requireRoles(RoleName.ADMIN, RoleName.PROVIDER, RoleName.REVIEWER), controller.getEvaluation);
 
+
+// Reviewer decision
+router.post('/:id/decision', requireRoles(RoleName.REVIEWER), controller.recordDecision);
+
 export default router;
