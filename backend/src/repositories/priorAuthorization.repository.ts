@@ -1,4 +1,4 @@
-import { PrismaClient, PriorAuthorizationStatus } from '@prisma/client';
+import { PrismaClient, PriorAuthorizationStatus, ReviewerDecisionType } from '@prisma/client';
 
 export interface PriorAuthListParams {
   page?: number;
@@ -52,6 +52,48 @@ export class PriorAuthorizationRepository {
     return this.prisma.priorAuthorization.update({
       where: { id },
       data: { status, decisionAt },
+    });
+  }
+
+  public async findLatestReviewerDecision(priorAuthorizationId: string) {
+    return this.prisma.reviewerDecision.findFirst({
+      where: { priorAuthorizationId },
+      orderBy: [
+        { reviewedAt: 'desc' },
+        { createdAt: 'desc' },
+      ],
+    });
+  }
+
+  public async createReviewerDecisionAndUpdateStatus(
+    priorAuthorizationId: string,
+    reviewerId: string,
+    decision: ReviewerDecisionType,
+    rationale: string,
+    status: PriorAuthorizationStatus,
+  ) {
+    const reviewedAt = new Date();
+
+    return this.prisma.$transaction(async (tx) => {
+      const reviewerDecision = await tx.reviewerDecision.create({
+        data: {
+          priorAuthorizationId,
+          reviewerId,
+          decision,
+          rationale,
+          reviewedAt,
+        },
+      });
+
+      const priorAuthorization = await tx.priorAuthorization.update({
+        where: { id: priorAuthorizationId },
+        data: {
+          status,
+          decisionAt: reviewedAt,
+        },
+      });
+
+      return { reviewerDecision, priorAuthorization };
     });
   }
 }
