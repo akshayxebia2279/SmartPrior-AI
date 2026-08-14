@@ -1,4 +1,5 @@
-// Prisma schema for SmartPrior-AI
+// SmartPrior-AI Prisma schema for the MVP prior authorization workflow.
+// AI recommendations are advisory only; ReviewerDecision is the authoritative human decision.
 
 generator client {
   provider = "prisma-client-js"
@@ -9,11 +10,467 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Initial foundation verification model
-model HealthCheck {
-  id        String   @id @default(uuid())
-  status    String   @default("ok")
-  checkedAt DateTime @default(now())
+enum RoleName {
+  ADMIN
+  PROVIDER
+  REVIEWER
+}
 
-  @@map("health_checks")
+enum PriorAuthorizationStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  REQUEST_INFORMATION
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  CLINICAL_NOTE
+  LAB_RESULT
+  IMAGING
+  PRESCRIPTION
+  OTHER
+}
+
+enum DocumentUploadStatus {
+  PENDING
+  UPLOADED
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
+enum DocumentExtractionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum AIAnalysisStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AIRecommendationType {
+  APPROVE_RECOMMENDATION
+  REJECT_RECOMMENDATION
+  REQUEST_INFORMATION
+  REVIEW_REQUIRED
+}
+
+enum ReviewerDecisionType {
+  APPROVED
+  REJECTED
+  REQUEST_INFORMATION
+}
+
+enum NotificationType {
+  STATUS_UPDATE
+  REMINDER
+  ALERT
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum RuleValidationResultType {
+  PENDING
+  PASS
+  FAIL
+  NEEDS_INFORMATION
+  NOT_APPLICABLE
+}
+
+enum InsurancePlanStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  EXPIRED
+}
+
+enum PriorAuthorizationPriority {
+  ROUTINE
+  URGENT
+  EXPEDITED
+}
+
+enum AuditActionType {
+  LOGIN
+  PRIOR_AUTHORIZATION_CREATED
+  DOCUMENT_UPLOADED
+  AI_ANALYSIS_COMPLETED
+  AI_RECOMMENDATION_GENERATED
+  REVIEWER_DECISION_SUBMITTED
+  STATUS_CHANGED
+  NOTIFICATION_SENT
+}
+
+model Role {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      RoleName @unique
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  firstName String?
+  lastName  String?
+  isActive  Boolean  @default(true)
+  roleId    String   @db.Uuid
+  providerId String? @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  provider Provider? @relation("ProviderUsers", fields: [providerId], references: [id], onDelete: SetNull)
+
+  uploadedDocuments Document[] @relation("UploadedDocuments")
+  notifications     Notification[] @relation("NotificationRecipient")
+  reviewerDecisions ReviewerDecision[] @relation("ReviewerDecisions")
+  submittedAuthorizations PriorAuthorization[] @relation("SubmittedAuthorizations")
+  auditLogs         AuditLog[] @relation("AuditActor")
+
+  @@index([roleId])
+  @@index([providerId])
+  @@index([email])
+  @@map("users")
+}
+
+model Provider {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  npi           String?
+  taxId         String?
+  contactEmail  String?
+  phone         String?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?  @default("US")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @db.Timestamptz()
+  updatedAt     DateTime @updatedAt @db.Timestamptz()
+
+  users User[] @relation("ProviderUsers")
+  priorAuthorizations PriorAuthorization[] @relation("ProviderAuthorizations")
+
+  @@index([name])
+  @@index([npi])
+  @@index([isActive])
+  @@map("providers")
+}
+
+model InsuranceCompany {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  code      String?  @unique
+  phone     String?
+  website   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz()
+  updatedAt DateTime @updatedAt @db.Timestamptz()
+
+  plans InsurancePlan[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("insurance_companies")
+}
+
+model InsurancePlan {
+  id                 String              @id @default(uuid()) @db.Uuid
+  insuranceCompanyId String              @db.Uuid
+  name               String
+  planCode           String
+  coverageType       String?
+  status             InsurancePlanStatus @default(ACTIVE)
+  effectiveFrom      DateTime?           @db.Timestamptz()
+  effectiveTo        DateTime?           @db.Timestamptz()
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now()) @db.Timestamptz()
+  updatedAt          DateTime            @updatedAt @db.Timestamptz()
+
+  insuranceCompany InsuranceCompany @relation(fields: [insuranceCompanyId], references: [id], onDelete: Restrict)
+  priorAuthorizations PriorAuthorization[] @relation("InsurancePlanAuthorizations")
+  insuranceRules     InsuranceRule[]
+
+  @@unique([insuranceCompanyId, planCode])
+  @@index([insuranceCompanyId, isActive])
+  @@index([planCode])
+  @@map("insurance_plans")
+}
+
+model Patient {
+  id          String    @id @default(uuid()) @db.Uuid
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime? @db.Date
+  gender      String?
+  mrn         String?   @unique
+  memberId    String?   @unique
+  email       String?
+  phone       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz()
+  updatedAt   DateTime  @updatedAt @db.Timestamptz()
+
+  priorAuthorizations PriorAuthorization[] @relation("PatientAuthorizations")
+
+  @@index([lastName, firstName])
+  @@index([mrn])
+  @@index([memberId])
+  @@map("patients")
+}
+
+model PriorAuthorization {
+  id                       String                    @id @default(uuid()) @db.Uuid
+  patientId                String                    @db.Uuid
+  providerId               String                    @db.Uuid
+  insurancePlanId          String                    @db.Uuid
+  submittedById            String?                   @db.Uuid
+  status                   PriorAuthorizationStatus  @default(DRAFT)
+  priority                 PriorAuthorizationPriority @default(ROUTINE)
+  requestedProcedureCode   String?
+  requestedProcedureName   String?
+  diagnosisCode            String?
+  diagnosisDescription     String?
+  requestNotes             String?
+  externalReference        String?
+  submittedAt              DateTime?                 @db.Timestamptz()
+  decisionAt               DateTime?                 @db.Timestamptz()
+  createdAt                DateTime                  @default(now()) @db.Timestamptz()
+  updatedAt                DateTime                  @updatedAt @db.Timestamptz()
+
+  patient        Patient        @relation("PatientAuthorizations", fields: [patientId], references: [id], onDelete: Restrict)
+  provider       Provider       @relation("ProviderAuthorizations", fields: [providerId], references: [id], onDelete: Restrict)
+  insurancePlan  InsurancePlan  @relation("InsurancePlanAuthorizations", fields: [insurancePlanId], references: [id], onDelete: Restrict)
+  submittedBy    User?          @relation("SubmittedAuthorizations", fields: [submittedById], references: [id], onDelete: SetNull)
+
+  documents         Document[]
+  aiAnalyses        AIAnalysis[]
+  aiRecommendations AIRecommendation[]
+  reviewerDecisions ReviewerDecision[]
+  notifications     Notification[]
+  ruleValidationResults RuleValidationResult[]
+
+  @@unique([providerId, externalReference])
+  @@index([patientId, status])
+  @@index([providerId, status])
+  @@index([insurancePlanId, status])
+  @@index([submittedById])
+  @@index([status, submittedAt])
+  @@index([createdAt])
+  @@map("prior_authorizations")
+}
+
+model Document {
+  id             String                 @id @default(uuid()) @db.Uuid
+  priorAuthorizationId String             @db.Uuid
+  uploadedById   String                 @db.Uuid
+  documentType   DocumentType
+  originalFileName String
+  storageReference String
+  mimeType       String?
+  fileSizeBytes  Int?
+  uploadStatus   DocumentUploadStatus   @default(PENDING)
+  uploadedAt     DateTime               @default(now()) @db.Timestamptz()
+  createdAt      DateTime               @default(now()) @db.Timestamptz()
+  updatedAt      DateTime               @updatedAt @db.Timestamptz()
+
+  priorAuthorization PriorAuthorization @relation(fields: [priorAuthorizationId], references: [id], onDelete: Cascade)
+  uploadedBy         User               @relation("UploadedDocuments", fields: [uploadedById], references: [id], onDelete: Restrict)
+  extractions        DocumentExtraction[]
+
+  @@index([priorAuthorizationId, uploadStatus])
+  @@index([uploadedById, uploadedAt])
+  @@index([documentType])
+  @@map("documents")
+}
+
+model DocumentExtraction {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  documentId         String                  @db.Uuid
+  status             DocumentExtractionStatus @default(PENDING)
+  structuredData     Json?
+  summary            String?
+  confidenceScore    Float?
+  missingDocuments   Json?
+  criteriaFindings   Json?
+  explainability     Json?
+  sourceReferences   Json?
+  createdAt          DateTime                @default(now()) @db.Timestamptz()
+  updatedAt          DateTime                @updatedAt @db.Timestamptz()
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, status])
+  @@index([createdAt])
+  @@map("document_extractions")
+}
+
+model InsuranceRule {
+  id               String   @id @default(uuid()) @db.Uuid
+  insurancePlanId  String   @db.Uuid
+  code             String
+  name             String
+  description      String?
+  ruleType         String?
+  criteria         Json?
+  isActive         Boolean  @default(true)
+  effectiveFrom    DateTime? @db.Timestamptz()
+  effectiveTo      DateTime? @db.Timestamptz()
+  createdAt        DateTime @default(now()) @db.Timestamptz()
+  updatedAt        DateTime @updatedAt @db.Timestamptz()
+
+  insurancePlan InsurancePlan @relation(fields: [insurancePlanId], references: [id], onDelete: Restrict)
+  ruleValidationResults RuleValidationResult[]
+
+  @@unique([insurancePlanId, code])
+  @@index([insurancePlanId, isActive])
+  @@index([code])
+  @@map("insurance_rules")
+}
+
+model RuleValidationResult {
+  id                  String                    @id @default(uuid()) @db.Uuid
+  priorAuthorizationId String                   @db.Uuid
+  insuranceRuleId     String                   @db.Uuid
+  result              RuleValidationResultType @default(PENDING)
+  details             String?
+  evidence            Json?
+  evaluatedAt         DateTime?                @db.Timestamptz()
+  createdAt           DateTime                 @default(now()) @db.Timestamptz()
+  updatedAt           DateTime                 @updatedAt @db.Timestamptz()
+
+  priorAuthorization PriorAuthorization @relation(fields: [priorAuthorizationId], references: [id], onDelete: Cascade)
+  insuranceRule      InsuranceRule      @relation(fields: [insuranceRuleId], references: [id], onDelete: Restrict)
+
+  @@index([priorAuthorizationId, insuranceRuleId])
+  @@index([result])
+  @@map("rule_validation_results")
+}
+
+model AIAnalysis {
+  id                    String          @id @default(uuid()) @db.Uuid
+  priorAuthorizationId  String          @db.Uuid
+  analysisStatus        AIAnalysisStatus @default(PENDING)
+  modelProvider         String?
+  modelVersion          String?
+  processingTimeMs      Int?
+  confidenceScore       Float?
+  clinicalSummary       String?
+  missingDocuments      Json?
+  criteriaFindings      Json?
+  explainability        Json?
+  sourceReferences      Json?
+  startedAt             DateTime?       @db.Timestamptz()
+  completedAt           DateTime?       @db.Timestamptz()
+  createdAt             DateTime        @default(now()) @db.Timestamptz()
+  updatedAt             DateTime        @updatedAt @db.Timestamptz()
+
+  priorAuthorization PriorAuthorization @relation(fields: [priorAuthorizationId], references: [id], onDelete: Cascade)
+  recommendations    AIRecommendation[]
+
+  @@index([priorAuthorizationId, analysisStatus])
+  @@index([modelProvider, modelVersion])
+  @@map("ai_analyses")
+}
+
+model AIRecommendation {
+  id                  String               @id @default(uuid()) @db.Uuid
+  priorAuthorizationId String              @db.Uuid
+  aiAnalysisId        String              @db.Uuid
+  recommendation      AIRecommendationType
+  confidenceScore     Float?
+  rationale           String?
+  generatedAt         DateTime            @default(now()) @db.Timestamptz()
+  createdAt           DateTime            @default(now()) @db.Timestamptz()
+  updatedAt           DateTime            @updatedAt @db.Timestamptz()
+
+  priorAuthorization PriorAuthorization @relation(fields: [priorAuthorizationId], references: [id], onDelete: Cascade)
+  aiAnalysis         AIAnalysis         @relation(fields: [aiAnalysisId], references: [id], onDelete: Cascade)
+
+  @@index([priorAuthorizationId, generatedAt])
+  @@index([aiAnalysisId])
+  @@map("ai_recommendations")
+}
+
+model ReviewerDecision {
+  id                  String               @id @default(uuid()) @db.Uuid
+  priorAuthorizationId String              @db.Uuid
+  reviewerId          String              @db.Uuid
+  decision            ReviewerDecisionType
+  rationale           String?
+  reviewedAt          DateTime            @default(now()) @db.Timestamptz()
+  createdAt           DateTime            @default(now()) @db.Timestamptz()
+  updatedAt           DateTime            @updatedAt @db.Timestamptz()
+
+  priorAuthorization PriorAuthorization @relation(fields: [priorAuthorizationId], references: [id], onDelete: Cascade)
+  reviewer           User               @relation("ReviewerDecisions", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([priorAuthorizationId, reviewedAt])
+  @@index([reviewerId, decision])
+  @@map("reviewer_decisions")
+}
+
+model Notification {
+  id                  String             @id @default(uuid()) @db.Uuid
+  recipientId         String             @db.Uuid
+  priorAuthorizationId String?            @db.Uuid
+  notificationType    NotificationType
+  channel             NotificationChannel
+  status              NotificationStatus @default(PENDING)
+  subject             String?
+  message             String?
+  sentAt              DateTime?          @db.Timestamptz()
+  failureReason       String?
+  createdAt           DateTime           @default(now()) @db.Timestamptz()
+  updatedAt           DateTime           @updatedAt @db.Timestamptz()
+
+  recipient User @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Restrict)
+  priorAuthorization PriorAuthorization? @relation(fields: [priorAuthorizationId], references: [id], onDelete: SetNull)
+
+  @@index([recipientId, status, createdAt])
+  @@index([priorAuthorizationId, status])
+  @@index([notificationType, channel])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id            String        @id @default(uuid()) @db.Uuid
+  actorId       String?       @db.Uuid
+  action        AuditActionType
+  entityType    String
+  entityId      String
+  correlationId String
+  metadata      Json?
+  createdAt     DateTime      @default(now()) @db.Timestamptz()
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([entityType, entityId])
+  @@index([correlationId])
+  @@map("audit_logs")
 }
