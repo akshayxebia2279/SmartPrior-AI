@@ -10,6 +10,9 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/smartprior_db?schema=public
+
     strategy:
       matrix:
         node-version: [20.x]
