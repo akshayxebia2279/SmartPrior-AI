@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -257,6 +258,7 @@ async function upsertRole(prismaClient: any, name: string) {
 async function upsertUser(prismaClient: any, input: {
   id: string;
   email: string;
+  passwordHash?: string | null;
   firstName: string;
   lastName: string;
   roleName: string;
@@ -267,6 +269,7 @@ async function upsertUser(prismaClient: any, input: {
     update: {
       firstName: input.firstName,
       lastName: input.lastName,
+      passwordHash: input.passwordHash ?? null,
       roleId: (await prismaClient.role.findUnique({ where: { name: input.roleName } })).id,
       providerId: input.providerId ?? null,
       isActive: true,
@@ -274,6 +277,7 @@ async function upsertUser(prismaClient: any, input: {
     },
     create: {
       email: input.email,
+      passwordHash: input.passwordHash ?? null,
       firstName: input.firstName,
       lastName: input.lastName,
       roleId: (await prismaClient.role.findUnique({ where: { name: input.roleName } })).id,
@@ -312,6 +316,13 @@ async function seed() {
     roleByName.set(roleName, role);
   }
 
+  const demoPassword = process.env.SMARTPRIOR_DEMO_PASSWORD;
+  if (!demoPassword) {
+    throw new Error('SMARTPRIOR_DEMO_PASSWORD is required to seed demo users.');
+  }
+
+  const demoPasswordHash = await bcrypt.hash(demoPassword, 12);
+
   let provider = await prismaAny.provider.findFirst({ where: { npi: 'DEMO-NPI-0001' } });
   if (!provider) {
     provider = await prismaAny.provider.create({
@@ -337,6 +348,7 @@ async function seed() {
   const adminUser = await upsertUser(prismaAny, {
     id: 'user-demo-admin',
     email: 'admin@smartprior-demo.local',
+    passwordHash: demoPasswordHash,
     firstName: 'Ava',
     lastName: 'Admin',
     roleName: 'ADMIN',
@@ -345,6 +357,7 @@ async function seed() {
   const providerUser = await upsertUser(prismaAny, {
     id: 'user-demo-provider',
     email: 'provider@smartprior-demo.local',
+    passwordHash: demoPasswordHash,
     firstName: 'Lena',
     lastName: 'Provider',
     roleName: 'PROVIDER',
@@ -354,6 +367,7 @@ async function seed() {
   const reviewerUser = await upsertUser(prismaAny, {
     id: 'user-demo-reviewer',
     email: 'reviewer@smartprior-demo.local',
+    passwordHash: demoPasswordHash,
     firstName: 'Milo',
     lastName: 'Reviewer',
     roleName: 'REVIEWER',

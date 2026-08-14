@@ -9,8 +9,13 @@ const envSchema = z.object({
   PORT: z.string().default('4000').transform((val) => parseInt(val, 10)),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string().default('postgresql://postgres:postgres@localhost:5432/smartprior_db?schema=public'),
-  JWT_SECRET: z.string().default('default_jwt_secret_for_development'),
-  JWT_EXPIRES_IN: z.string().default('1d'),
+  JWT_ACCESS_SECRET: z
+    .string({ required_error: 'JWT_ACCESS_SECRET is required' })
+    .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters long'),
+  JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
+  JWT_SECRET: z.string().optional(),
+  JWT_EXPIRES_IN: z.string().optional(),
+  SMARTPRIOR_DEMO_PASSWORD: z.string().optional(),
   AI_PROVIDER: z.string().default('openai'),
   AI_API_KEY: z.string().optional(),
 });
