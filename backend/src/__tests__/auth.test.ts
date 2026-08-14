@@ -2,6 +2,8 @@ import request from 'supertest';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import path from 'path';
 
 describe('AUTH-001 authentication and RBAC foundation', () => {
   process.env.NODE_ENV = 'test';
@@ -294,11 +296,40 @@ describe('AUTH-001 authentication and RBAC foundation', () => {
   });
 
   it('should fail configuration when JWT_ACCESS_SECRET is missing', async () => {
-    setValidAuthEnv();
-    delete process.env.JWT_ACCESS_SECRET;
-    jest.resetModules();
+    // Preserve existing secret, ensure test isolates environment, and restore.
+    const originalSecret = process.env.JWT_ACCESS_SECRET;
+    const envFile = path.resolve(__dirname, '../../../.env');
+    const backupEnvFile = `${envFile}.bak.test`;
+    let movedEnv = false;
+    try {
+      // If a repo .env exists, move it aside so dotenv can't reload the secret.
+      if (fs.existsSync(envFile)) {
+        fs.renameSync(envFile, backupEnvFile);
+        movedEnv = true;
+      }
 
-    await expect(import('../config/env.config')).rejects.toThrow();
+      setValidAuthEnv();
+      delete process.env.JWT_ACCESS_SECRET;
+      jest.resetModules();
+
+      await expect(import('../config/env.config')).rejects.toThrow();
+    } finally {
+      // restore env var in-process
+      if (originalSecret === undefined) {
+        delete process.env.JWT_ACCESS_SECRET;
+      } else {
+        process.env.JWT_ACCESS_SECRET = originalSecret;
+      }
+
+      // restore the repo .env file if we moved it
+      if (movedEnv) {
+        try {
+          fs.renameSync(backupEnvFile, envFile);
+        } catch (err) {
+          // best-effort restore; tests shouldn't fail here
+        }
+      }
+    }
   });
 
   it('should fail configuration when JWT_ACCESS_SECRET is too short', async () => {
