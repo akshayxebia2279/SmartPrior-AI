@@ -5,6 +5,16 @@ import * as path from 'path';
 
 dotenv.config();
 
+// Production safety: allow seeding only in development and test environments.
+const nodeEnv = process.env.NODE_ENV;
+
+if (!['development', 'test'].includes(nodeEnv ?? '')) {
+  console.error(
+    'ERROR: Database seeding is allowed only in development or test environments.'
+  );
+  process.exit(1);
+}
+
 const prisma = new PrismaClient();
 
 // Use the exact model names as they appear in prisma/schema.prisma
@@ -280,7 +290,8 @@ async function seed() {
 
   const missingModels = REQUIRED_MODELS.filter((model) => !hasDomainModel(prismaAny, model));
   if (missingModels.length > 0) {
-    console.log(`Seed skipped: schema is not yet using the SmartPrior domain model set (missing: ${missingModels.join(', ')}).`);
+    console.error(`Seed failed: Required Prisma models are missing (${missingModels.join(', ')}). Run 'npx prisma migrate dev' and try again.`);
+    process.exitCode = 1;
     return;
   }
 
@@ -538,13 +549,15 @@ async function seed() {
   }
 
   for (const [index, scenario] of DEMO_SCENARIOS.entries()) {
-    const pa = priorAuthMap[scenario.key];
-    const document = documentMap[scenario.key];
+    await prisma.$transaction(async (tx) => {
+      const txAny = tx as any;
+      const pa = priorAuthMap[scenario.key];
+      const document = documentMap[scenario.key];
 
-    // DocumentExtraction: ensure a single extraction per document using documentId
-    let extraction = await prismaAny.documentExtraction.findFirst({ where: { documentId: document.id } });
-    if (!extraction) {
-      extraction = await prismaAny.documentExtraction.create({
+      // DocumentExtraction: ensure a single extraction per document using documentId
+      let extraction = await txAny.documentExtraction.findFirst({ where: { documentId: document.id } });
+      if (!extraction) {
+        extraction = await txAny.documentExtraction.create({
         data: {
           documentId: document.id,
           status: 'COMPLETED',
@@ -562,13 +575,13 @@ async function seed() {
           createdAt: getDate(index + 1, 9),
           updatedAt: getDate(index + 1, 9),
         },
-      });
-    }
+        });
+      }
 
-    // AIAnalysis: identify by priorAuthorizationId + modelProvider + modelVersion
-    let aiAnalysis = await prismaAny.aIAnalysis.findFirst({ where: { priorAuthorizationId: pa.id, modelProvider: 'synthetic-demo-vision-model', modelVersion: 'v1.0-demo' } });
-    if (!aiAnalysis) {
-      aiAnalysis = await prismaAny.aIAnalysis.create({
+      // AIAnalysis: identify by priorAuthorizationId + modelProvider + modelVersion
+      let aiAnalysis = await txAny.aIAnalysis.findFirst({ where: { priorAuthorizationId: pa.id, modelProvider: 'synthetic-demo-vision-model', modelVersion: 'v1.0-demo' } });
+      if (!aiAnalysis) {
+        aiAnalysis = await txAny.aIAnalysis.create({
         data: {
           priorAuthorizationId: pa.id,
           analysisStatus: scenario.ai.analysisStatus,
@@ -586,13 +599,13 @@ async function seed() {
           createdAt: getDate(index + 1, 9),
           updatedAt: getDate(index + 1, 9, 1),
         },
-      });
-    }
+        });
+      }
 
-    // AIRecommendation: ensure single recommendation per analysis per run
-    let aiRecommendation = await prismaAny.aIRecommendation.findFirst({ where: { priorAuthorizationId: pa.id, aiAnalysisId: aiAnalysis.id } });
-    if (!aiRecommendation) {
-      aiRecommendation = await prismaAny.aIRecommendation.create({
+      // AIRecommendation: ensure single recommendation per analysis per run
+      let aiRecommendation = await txAny.aIRecommendation.findFirst({ where: { priorAuthorizationId: pa.id, aiAnalysisId: aiAnalysis.id } });
+      if (!aiRecommendation) {
+        aiRecommendation = await txAny.aIRecommendation.create({
         data: {
           priorAuthorizationId: pa.id,
           aiAnalysisId: aiAnalysis.id,
@@ -603,13 +616,13 @@ async function seed() {
           createdAt: getDate(index + 1, 9, 30),
           updatedAt: getDate(index + 1, 9, 30),
         },
-      });
-    }
+        });
+      }
 
-    // ReviewerDecision: one decision per prior auth by reviewer
-    let reviewerDecision = await prismaAny.reviewerDecision.findFirst({ where: { priorAuthorizationId: pa.id, reviewerId: reviewerUser.id } });
-    if (!reviewerDecision) {
-      reviewerDecision = await prismaAny.reviewerDecision.create({
+      // ReviewerDecision: one decision per prior auth by reviewer
+      let reviewerDecision = await txAny.reviewerDecision.findFirst({ where: { priorAuthorizationId: pa.id, reviewerId: reviewerUser.id } });
+      if (!reviewerDecision) {
+        reviewerDecision = await txAny.reviewerDecision.create({
         data: {
           priorAuthorizationId: pa.id,
           reviewerId: reviewerUser.id,
@@ -619,13 +632,13 @@ async function seed() {
           createdAt: getDate(index + 1, 11),
           updatedAt: getDate(index + 1, 11),
         },
-      });
-    }
+        });
+      }
 
-    // Notification: avoid hard-coded id, use findFirst/create by recipient + priorAuthorization + type
-    let notification = await prismaAny.notification.findFirst({ where: { recipientId: providerUser.id, priorAuthorizationId: pa.id, notificationType: scenario.notification.type } });
-    if (!notification) {
-      notification = await prismaAny.notification.create({
+      // Notification: avoid hard-coded id, use findFirst/create by recipient + priorAuthorization + type
+      let notification = await txAny.notification.findFirst({ where: { recipientId: providerUser.id, priorAuthorizationId: pa.id, notificationType: scenario.notification.type } });
+      if (!notification) {
+        notification = await txAny.notification.create({
         data: {
           recipientId: providerUser.id,
           priorAuthorizationId: pa.id,
@@ -639,10 +652,10 @@ async function seed() {
           createdAt: getDate(index + 1, 12),
           updatedAt: getDate(index + 1, 12),
         },
-      });
-    }
+        });
+      }
 
-    const validationRules = createdRules.map((rule) => {
+      const validationRules = createdRules.map((rule) => {
       const defaultResult =
         scenario.key === 'scenario-approve'
           ? 'PASS'
@@ -674,14 +687,14 @@ async function seed() {
       };
     });
 
-    for (const vr of validationRules) {
-      const existing = await prismaAny.ruleValidationResult.findFirst({ where: { priorAuthorizationId: vr.priorAuthorizationId, insuranceRuleId: vr.insuranceRuleId } });
-      if (!existing) {
-        await prismaAny.ruleValidationResult.create({ data: vr });
+      for (const vr of validationRules) {
+        const existing = await txAny.ruleValidationResult.findFirst({ where: { priorAuthorizationId: vr.priorAuthorizationId, insuranceRuleId: vr.insuranceRuleId } });
+        if (!existing) {
+          await txAny.ruleValidationResult.create({ data: vr });
+        }
       }
-    }
 
-    const auditEntries = [
+      const auditEntries = [
       {
         action: 'PRIOR_AUTHORIZATION_CREATED',
         entityType: 'PriorAuthorization',
@@ -733,8 +746,8 @@ async function seed() {
       },
     ];
 
-    for (const entry of auditEntries) {
-      const existing = await prismaAny.auditLog.findFirst({
+      for (const entry of auditEntries) {
+        const existing = await txAny.auditLog.findFirst({
         where: {
           correlationId: entry.correlationId,
           entityType: entry.entityType,
@@ -743,8 +756,8 @@ async function seed() {
         },
       });
 
-      if (!existing) {
-        await prismaAny.auditLog.create({
+        if (!existing) {
+          await txAny.auditLog.create({
           data: {
             actorId: reviewerUser.id,
             action: entry.action,
@@ -754,9 +767,10 @@ async function seed() {
             metadata: entry.metadata,
             createdAt: getDate(index + 1, 13),
           },
-        });
+          });
+        }
       }
-    }
+    });
   }
 
   console.log('Synthetic SmartPrior demo data seeded successfully.');
