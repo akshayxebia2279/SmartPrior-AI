@@ -138,6 +138,33 @@ describe('Prior Authorization API', () => {
     expect(res.body.priorAuthorization.status).toBe('DRAFT');
   });
 
+  it('resolves a patient/provider/plan from the UI payload shape', async () => {
+    const token = await loginAs('provider@smartprior-demo.local');
+    const patient = await getPatient();
+    const providerUser = await prisma.user.findUnique({ where: { email: 'provider@smartprior-demo.local' }, select: { providerId: true } });
+    const plan = await prisma.insurancePlan.findFirst({ where: { name: 'Summit Essential PPO' } });
+
+    const res = await request(app)
+      .post('/api/v1/prior-authorizations')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        patient: {
+          firstName: patient!.firstName,
+          lastName: patient!.lastName,
+          memberId: patient!.memberId,
+        },
+        provider: 'North Harbor Family Clinic',
+        insurancePlan: 'Summit Essential PPO',
+        requestedProcedureCode: 'RESOLVE-UI-1',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.priorAuthorization.patientId).toBe(patient!.id);
+    expect(res.body.priorAuthorization.providerId).toBe(providerUser!.providerId);
+    expect(res.body.priorAuthorization.insurancePlanId).toBe(plan!.id);
+    expect(res.body.priorAuthorization.requestedProcedureCode).toBe('RESOLVE-UI-1');
+  });
+
   it('rejects provider create with non-draft status', async () => {
     const token = await loginAs('provider@smartprior-demo.local');
     const provider = await getProvider();

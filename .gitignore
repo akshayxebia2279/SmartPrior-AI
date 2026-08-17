@@ -36,3 +36,11 @@ yarn-error.log*
 # Database / Prisma
 *.db
 *.sqlite
+
+# Runtime uploads
+backend/uploads/
+
+# Local browser / AI-agent tooling
+.playwright-cli/
+prior-auth-test-results.json
+/.claude/

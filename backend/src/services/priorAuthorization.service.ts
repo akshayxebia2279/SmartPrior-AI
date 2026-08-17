@@ -13,7 +13,232 @@ export class PriorAuthorizationService {
     this.repo = new PriorAuthorizationRepository(this.prisma);
   }
 
+  private normalizeText(value: unknown): string | null {
+    if (typeof value !== 'string') {
+      return null;
+    }
+
+    const normalized = value.trim();
+    return normalized.length > 0 ? normalized : null;
+  }
+
+  private async requireValidEntityId<T extends { id: string }>(
+    entityName: 'patient' | 'provider' | 'insurancePlan',
+    id: string,
+    lookup: () => Promise<T | null>,
+    label: string,
+  ) {
+    const record = await lookup();
+    if (!record) {
+      const err: any = new Error(`No matching ${entityName} found for ${label}.`);
+      err.statusCode = 400;
+      throw err;
+    }
+    return record.id;
+  }
+
+  private parsePatientName(value: string | null): { firstName: string | null; lastName: string | null } {
+    const normalized = this.normalizeText(value);
+    if (!normalized) return { firstName: null, lastName: null };
+
+    const parts = normalized.split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return { firstName: null, lastName: null };
+    if (parts.length === 1) return { firstName: parts[0], lastName: null };
+
+    return {
+      firstName: parts[0],
+      lastName: parts.slice(1).join(' '),
+    };
+  }
+
+  private normalizePriority(value: unknown): 'ROUTINE' | 'URGENT' | 'EXPEDITED' | null {
+    const raw = this.normalizeText(typeof value === 'string' ? value : undefined);
+    if (!raw) {
+      return null;
+    }
+
+    switch (raw.toUpperCase()) {
+      case 'ROUTINE':
+        return 'ROUTINE';
+      case 'URGENT':
+        return 'URGENT';
+      case 'EXPEDITED':
+        return 'EXPEDITED';
+      default:
+        return null;
+    }
+  }
+
+  private async resolvePatientId(data: any) {
+    const explicitId = this.normalizeText(data.patientId ?? data.patient?.id ?? data.patient_id);
+    if (explicitId) {
+      return this.requireValidEntityId('patient', explicitId, () => this.prisma.patient.findUnique({ where: { id: explicitId } }), `id ${explicitId}`);
+    }
+
+    const patientInput = data.patient ?? {};
+    const memberId = this.normalizeText(patientInput.memberId ?? data.memberId);
+    const mrn = this.normalizeText(patientInput.mrn ?? data.mrn);
+    const email = this.normalizeText(patientInput.email ?? data.email);
+    const fullName = this.normalizeText(patientInput.name ?? data.patientName ?? patientInput.fullName ?? data.fullName);
+    const { firstName, lastName } = this.parsePatientName(fullName);
+
+    if (memberId) {
+      const patient = await this.prisma.patient.findUnique({ where: { memberId } });
+      if (patient) {
+        return patient.id;
+      }
+      const err: any = new Error(`No matching patient found for memberId "${memberId}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (mrn) {
+      const patient = await this.prisma.patient.findUnique({ where: { mrn } });
+      if (patient) {
+        return patient.id;
+      }
+      const err: any = new Error(`No matching patient found for MRN "${mrn}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (email) {
+      const patient = await this.prisma.patient.findFirst({ where: { email: { equals: email, mode: 'insensitive' } } });
+      if (patient) {
+        return patient.id;
+      }
+      const err: any = new Error(`No matching patient found for email "${email}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (firstName || lastName) {
+      const patient = await this.prisma.patient.findFirst({
+        where: {
+          firstName: firstName ? { equals: firstName, mode: 'insensitive' } : undefined,
+          lastName: lastName ? { equals: lastName, mode: 'insensitive' } : undefined,
+        },
+      });
+
+      if (patient) {
+        return patient.id;
+      }
+
+      const err: any = new Error(`No matching patient found for "${fullName}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const err: any = new Error('Missing valid patient selection. Please choose an existing patient.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  private async resolveProviderId(data: any, actorId?: string, actorRole?: RoleName) {
+    const explicitId = this.normalizeText(data.providerId ?? data.provider?.id ?? data.provider_id);
+    if (explicitId) {
+      const provider = await this.prisma.provider.findUnique({ where: { id: explicitId } });
+      if (!provider) {
+        const err: any = new Error(`No matching provider found for id "${explicitId}".`);
+        err.statusCode = 400;
+        throw err;
+      }
+      return provider.id;
+    }
+
+    if (actorRole === RoleName.PROVIDER && actorId) {
+      const currentUser = await this.prisma.user.findUnique({
+        where: { id: actorId },
+        select: { providerId: true },
+      });
+
+      if (currentUser?.providerId) {
+        const provider = await this.prisma.provider.findUnique({ where: { id: currentUser.providerId } });
+        if (!provider) {
+          const err: any = new Error('Authenticated provider is not linked to a valid provider record.');
+          err.statusCode = 400;
+          throw err;
+        }
+
+        return provider.id;
+      }
+    }
+
+    const providerInput = data.provider;
+    const providerName = this.normalizeText(typeof providerInput === 'string' ? providerInput : providerInput?.name);
+
+    if (!providerName) {
+      const err: any = new Error('Missing required fields: patientId, providerId, insurancePlanId');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const provider = await this.prisma.provider.findFirst({
+      where: {
+        OR: [
+          { name: { equals: providerName, mode: 'insensitive' } },
+          { npi: providerName },
+        ],
+      },
+    });
+
+    if (!provider) {
+      const err: any = new Error(`No matching provider found for "${providerName}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    return provider.id;
+  }
+
+  private async resolveInsurancePlanId(data: any) {
+    const explicitId = this.normalizeText(data.insurancePlanId ?? data.insurancePlan?.id ?? data.insurance_plan_id);
+    if (explicitId) {
+      const plan = await this.prisma.insurancePlan.findUnique({ where: { id: explicitId } });
+      if (!plan) {
+        const err: any = new Error(`No matching insurance plan found for id "${explicitId}".`);
+        err.statusCode = 400;
+        throw err;
+      }
+      return plan.id;
+    }
+
+    const planInput = data.insurancePlan;
+    const planName = this.normalizeText(typeof planInput === 'string' ? planInput : planInput?.name);
+
+    if (!planName) {
+      const err: any = new Error('Missing required fields: patientId, providerId, insurancePlanId');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const plan = await this.prisma.insurancePlan.findFirst({
+      where: {
+        OR: [
+          { name: { equals: planName, mode: 'insensitive' } },
+          { planCode: planName },
+        ],
+      },
+    });
+
+    if (!plan) {
+      const err: any = new Error(`No matching insurance plan found for "${planName}".`);
+      err.statusCode = 400;
+      throw err;
+    }
+
+    return plan.id;
+  }
+
   public async create(data: any, actorId: string, actorRole: RoleName) {
+    const patientId = await this.resolvePatientId(data);
+    const providerId = await this.resolveProviderId(data, actorId, actorRole);
+    const insurancePlanId = await this.resolveInsurancePlanId(data);
+
+    data.patientId = patientId;
+    data.providerId = providerId;
+    data.insurancePlanId = insurancePlanId;
+
     // Basic validation
     if (!data.patientId || !data.providerId || !data.insurancePlanId) {
       const err: any = new Error('Missing required fields: patientId, providerId, insurancePlanId');
@@ -31,6 +256,13 @@ export class PriorAuthorizationService {
     const requestedStatus = data.status as PriorAuthorizationStatus | undefined;
     if (requestedStatus && !PRIOR_AUTH_STATUS_VALUES.includes(requestedStatus)) {
       const err: any = new Error('Invalid status value');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const normalizedPriority = this.normalizePriority(data.priority ?? 'ROUTINE');
+    if (!normalizedPriority) {
+      const err: any = new Error('Invalid priority value');
       err.statusCode = 400;
       throw err;
     }
@@ -65,7 +297,7 @@ export class PriorAuthorizationService {
       externalReference: data.externalReference || null,
       submittedById: actorId,
       status: actorRole === RoleName.ADMIN && requestedStatus ? requestedStatus : PriorAuthorizationStatus.DRAFT,
-      priority: data.priority || 'ROUTINE',
+      priority: normalizedPriority,
       submittedAt: data.submittedAt ? new Date(data.submittedAt) : null,
     };
 

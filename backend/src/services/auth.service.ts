@@ -13,6 +13,7 @@ export interface PublicUserProfile {
   email: string;
   firstName: string | null;
   lastName: string | null;
+  providerId: string | null;
   role: {
     id: string;
     name: RoleName;
@@ -116,6 +117,7 @@ export class AuthService {
     email: string;
     firstName: string | null;
     lastName: string | null;
+    providerId?: string | null;
     role: { id: string; name: RoleName };
   }): PublicUserProfile {
     return {
@@ -123,6 +125,7 @@ export class AuthService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      providerId: user.providerId ?? null,
       role: {
         id: user.role.id,
         name: user.role.name,

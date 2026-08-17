@@ -33,13 +33,13 @@ export const HomePage: React.FC = () => {
     <Box sx={{ py: 2 }}>
       <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, border: '1px solid #e2e8f0', background: 'linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%)' }}>
         <Typography variant="h4" component="h1" fontWeight={700} gutterBottom color="#0f172a">
-          SmartPrior AI Foundation Shell
+          SmartPrior AI
         </Typography>
         <Typography variant="body1" color="text.secondary" paragraph sx={{ maxWidth: 800 }}>
-          Welcome to the initial foundation of the SmartPrior AI Capstone Project. This platform provides an AI-assisted prior authorization pipeline with mandatory human reviewer guardrails.
+          SmartPrior AI assists authorized clinical reviewers with evidence-based decision support for prior authorizations. AI provides advisory analysis grounded in uploaded clinical documentation; final authorization decisions remain with authorized human reviewers.
         </Typography>
         <Alert severity="info" sx={{ mt: 2, borderRadius: 2 }}>
-          <strong>AI Guardrail Active:</strong> AI provides clinical summaries, criteria verification, and advisory recommendations. Final prior authorization decisions are strictly made by authorized human reviewers.
+          <strong>AI-assisted recommendation:</strong> AI provides clinical summaries and supporting evidence. Reviewer decision is required to complete authorization.
         </Alert>
       </Paper>
 
